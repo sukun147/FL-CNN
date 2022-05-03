@@ -3,7 +3,7 @@ import conn
 
 epoch = ...
 client_num = 2
-sever = conn.Sever(...)
+sever = conn.Sever(..., ..., client_num)
 
 for i in range(epoch):
     params_list = []
@@ -16,4 +16,4 @@ for i in range(epoch):
 
     # 分发参数
     for j in range(client_num):
-        sever.send(avg_params, ...)
+        sever.send(avg_params)
