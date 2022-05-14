@@ -3,9 +3,9 @@ import conn
 
 epoch = 100
 client_num = 2
-host = pass
-port = pass
-sever = conn.Sever(host, port, client_num)
+host = ...
+port = ...
+sever = conn.Server(host, port, client_num)
 
 for i in range(epoch):
     params_list = []
