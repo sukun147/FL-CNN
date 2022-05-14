@@ -1,3 +1,5 @@
+import torch
+
 def model_average(param_list):
 
     '''模型平均
