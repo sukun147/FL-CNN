@@ -3,11 +3,13 @@ import conn
 
 ...
 epoch = ...
-client = conn.Client(...)
+client = conn.Client(..., ...)
 model = ...
+
 
 def train():
     ...
+
 
 for i in range(epoch):
     ...
@@ -19,5 +21,3 @@ for i in range(epoch):
     # 更新参数
     utils.update_model_params(model)
     ...
-
-
