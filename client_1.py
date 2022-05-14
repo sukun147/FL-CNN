@@ -56,7 +56,7 @@ server_host = pass
 server_port = pass
 epoch = 100
 client_1 = conn.Client(server_host, server_port)  
-model = NeuralNetwork()
+model_1 = NeuralNetwork()
 optimizer_1 = optim.SGD(model_1.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
