@@ -52,8 +52,10 @@ class NeuralNetwork(torch.nn.Module):
         x = self.layer_3(x)
         return x
 
+server_host = pass
+server_port = pass
 epoch = 100
-client_1 = conn.Client(...)  
+client_1 = conn.Client(server_host, server_port)  
 model = NeuralNetwork()
 optimizer_1 = optim.SGD(model_1.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
