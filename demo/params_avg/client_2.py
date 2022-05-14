@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".\\.\\") # 使其能够调用上上级目录的文件
 import utils
 import conn
 from torchvision import transforms as tf
@@ -55,7 +57,7 @@ class NeuralNetwork(torch.nn.Module):
 epoch = 100
 server_host = pass
 server_port = pass
-client_2 = conn.Client(server_host, server_port)  
+client_2 = conn.Client(server_host, server_port)
 model_2 = NeuralNetwork()
 optimizer_2 = optim.SGD(model_2.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
@@ -154,10 +156,10 @@ for i in range(epoch):
 
     params = train(model_2, optimizer_2, train_loader_2, pattern='model')
     test(model_2, test_loader, 2, epoch)
-    
+
     client_2.send(params)
-    
-  
+
+
     avg_params = client_2.recv()
-   
+
     utils.update_model_params(model_2, avg_params, [])
