@@ -53,8 +53,10 @@ class NeuralNetwork(torch.nn.Module):
         return x
 
 epoch = 100
-client_2 = conn.Client(...)  
-model = NeuralNetwork()
+server_host = pass
+server_port = pass
+client_2 = conn.Client(server_host, server_port)  
+model_2 = NeuralNetwork()
 optimizer_2 = optim.SGD(model_2.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
