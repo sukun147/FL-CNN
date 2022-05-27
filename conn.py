@@ -13,6 +13,7 @@ class Server:
         :param client_num: 客户端数量
         """
         self.socket = socket.socket()
+        self.socket.settimeout(60)
         self.socket.bind((host, port))
         self.socket.listen(client_num)
         self.client = None
@@ -23,6 +24,7 @@ class Server:
         """
         client, port = self.socket.accept()
         self.client = client
+        self.socket.settimeout(None)
         return True if client else False
 
     def send(self, obj: object) -> bool:
@@ -58,7 +60,7 @@ class Server:
             size = json.loads(header.decode())['size']
             data = b''
             while size > 0:
-                self.client.settimeout(5)
+                self.client.settimeout(60)
                 content = self.client.recv(1024 * 8 * 1024)  # 接收缓冲区最大8M
                 data += content
                 size -= len(content)
@@ -84,7 +86,9 @@ class Client:
         :param sever_port: 服务端端口
         """
         self.socket = socket.socket()
+        self.socket.settimeout(60)
         self.socket.connect((sever_host, sever_port))
+        self.socket.settimeout(None)
 
     def send(self, obj: object) -> bool:
         """
@@ -119,7 +123,7 @@ class Client:
             size = json.loads(header.decode())['size']
             data = b''
             while size > 0:
-                self.socket.settimeout(5)
+                self.socket.settimeout(60)
                 content = self.socket.recv(1024 * 8 * 1024)  # 接收缓冲区最大8M
                 data += content
                 size -= len(content)
