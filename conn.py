@@ -13,6 +13,7 @@ class Server:
         :param client_num: 客户端数量
         """
         self.socket = socket.socket()
+        self.socket.settimeout(1000)
         self.socket.bind((host, port))
         self.socket.listen(client_num)
         self.client = None
@@ -23,6 +24,7 @@ class Server:
         """
         client, port = self.socket.accept()
         self.client = client
+        self.socket.settimeout(None)
         return True if client else False
 
     def send(self, obj: object) -> bool:
@@ -83,8 +85,14 @@ class Client:
         :param sever_host: 服务端地址
         :param sever_port: 服务端端口
         """
-        self.socket = socket.socket()
-        self.socket.connect((sever_host, sever_port))
+        try:
+            self.socket = socket.socket()
+            self.socket.settimeout(1000)
+            self.socket.connect((sever_host, sever_port))
+            self.socket.settimeout(None)
+        except ConnectionRefusedError:
+            print('please start the server first...')
+            return
 
     def send(self, obj: object) -> bool:
         """
