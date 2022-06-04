@@ -12,8 +12,8 @@ class Server:
         :param port: 服务器端口
         :param client_num: 客户端数量
         """
+        socket.setdefaulttimeout(60)
         self.socket = socket.socket()
-        self.socket.settimeout(60)
         self.socket.bind((host, port))
         self.socket.listen(client_num)
         self.client = []
@@ -31,9 +31,9 @@ class Server:
             data = pickle.dumps(obj)
             header = json.dumps({'size': len(data)}).encode()
             for client in self.client:
-                client.send(struct.pack('i', len(header)))  # 报头长度
-                client.send(header)  # 报头
-                client.send(data)  # 数据
+                client.sendall(struct.pack('i', len(header)))  # 报头长度
+                client.sendall(header)  # 报头
+                client.sendall(data)  # 数据
             return True
         except Exception as e:
             print('Error:', e)
@@ -58,7 +58,6 @@ class Server:
                 size = json.loads(header.decode())['size']
                 data = b''
                 while size > 0:
-                    client.settimeout(60)
                     content = client.recv(1024 * 8 * 1024)  # 接收缓冲区最大8M
                     data += content
                     size -= len(content)
@@ -84,10 +83,9 @@ class Client:
         :param sever_port: 服务端端口
         """
         try:
+            socket.setdefaulttimeout(60)
             self.socket = socket.socket()
-            self.socket.settimeout(60)
             self.socket.connect((sever_host, sever_port))
-            self.socket.settimeout(None)
         except ConnectionRefusedError:
             print('please start the server first...')
             return
@@ -100,9 +98,9 @@ class Client:
         try:
             data = pickle.dumps(obj)
             header = json.dumps({'size': len(data)}).encode()
-            self.socket.send(struct.pack('i', len(header)))  # 报头长度
-            self.socket.send(header)  # 报头
-            self.socket.send(data)  # 数据
+            self.socket.sendall(struct.pack('i', len(header)))  # 报头长度
+            self.socket.sendall(header)  # 报头
+            self.socket.sendall(data)  # 数据
             return True
         except Exception as e:
             print('Error:', e)
@@ -125,7 +123,6 @@ class Client:
             size = json.loads(header.decode())['size']
             data = b''
             while size > 0:
-                self.socket.settimeout(60)
                 content = self.socket.recv(1024 * 8 * 1024)  # 接收缓冲区最大8M
                 data += content
                 size -= len(content)
@@ -136,7 +133,7 @@ class Client:
             else:
                 return pickle.loads(data)
             if not is_conn:
-                print('The client is disconnected...')
+                print('The server is disconnected...')
                 return None
         except Exception as e:
             print('Error:', e)
