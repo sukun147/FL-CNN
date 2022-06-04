@@ -1,5 +1,6 @@
 import torch
 
+
 def model_average(param_list):
 
     '''模型平均
@@ -20,6 +21,7 @@ def model_average(param_list):
         new_params[i] /= len(param_list)
 
     return new_params
+
 
 def update_model_params(model, params: list, grads: list, lr=0.1):
 

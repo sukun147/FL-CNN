@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".\\.\\") # 使其能够调用上上级目录的文件
 import utils
 import conn
 from torchvision import transforms as tf
@@ -20,6 +18,7 @@ train_loader_1 = DataLoader(train_dataset_1, batch_size=batch_size, shuffle=True
 
 test_dataset = datasets.MNIST(root='../dataset/mnist', train=False, transform=transform, download=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
 
 class NeuralNetwork(torch.nn.Module):
 
@@ -54,10 +53,11 @@ class NeuralNetwork(torch.nn.Module):
         x = self.layer_3(x)
         return x
 
-server_host = pass
-server_port = pass
+
+server_host = '192.168.1.104'
+server_port = 666
 epoch = 100
-client_1 = conn.Client(server_host, server_port)
+client_1 = conn.Client(server_host, server_port)  
 model_1 = NeuralNetwork()
 optimizer_1 = optim.SGD(model_1.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
@@ -79,6 +79,25 @@ def get_model_params(model):
         params.append(param.data.clone())
 
     return params
+
+
+def get_model_grads(model):
+
+    '''获取模型参数梯度
+
+    :param model: 用于完成图像识别的模型，当前使用CNN
+
+    :return: 返回一个list， 其中包含模型参数的梯度，类型为torch.Tensor
+
+    '''
+
+    grads = []
+
+    for param in model.parameters():
+        grads.append(param.grad.data.clone())
+
+    return grads
+
 
 def train(model, optimizer, train_loader, pattern='model', batch_index=None):
 
@@ -166,14 +185,14 @@ def test(model, test_loader, participant, epoch):
 for i in range(epoch):
 
     params = train(model_1, optimizer_1, train_loader_1, pattern='model')
-    test(model_1, test_loader, 1, epoch)
-
+    test(model_1, test_loader, 1, i)
+    
     client_1.send(params)
-
-
+    
+  
     avg_params = client_1.recv()
-
+   
     utils.update_model_params(model_1, avg_params, [])
-
+    
 
 

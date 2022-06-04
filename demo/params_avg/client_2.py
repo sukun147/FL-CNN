@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".\\.\\") # 使其能够调用上上级目录的文件
 import utils
 import conn
 from torchvision import transforms as tf
@@ -8,6 +6,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Subset
 import torch
 import torch.optim as optim
+
 
 batch_size = 50
 data_size = 10000
@@ -20,6 +19,7 @@ train_loader_2 = DataLoader(train_dataset_2, batch_size=batch_size, shuffle=True
 
 test_dataset = datasets.MNIST(root='../dataset/mnist', train=False, transform=transform, download=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
 
 class NeuralNetwork(torch.nn.Module):
 
@@ -54,14 +54,16 @@ class NeuralNetwork(torch.nn.Module):
         x = self.layer_3(x)
         return x
 
+
+server_host = '192.168.1.104'
+server_port = 666
 epoch = 100
-server_host = pass
-server_port = pass
-client_2 = conn.Client(server_host, server_port)
+client_2 = conn.Client(server_host, server_port)  
 model_2 = NeuralNetwork()
 optimizer_2 = optim.SGD(model_2.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def get_model_params(model):
 
@@ -76,6 +78,25 @@ def get_model_params(model):
         params.append(param.data.clone())
 
     return params
+
+
+def get_model_grads(model):
+
+    '''获取模型参数梯度
+
+    :param model: 用于完成图像识别的模型，当前使用CNN
+
+    :return: 返回一个list， 其中包含模型参数的梯度，类型为torch.Tensor
+
+    '''
+
+    grads = []
+
+    for param in model.parameters():
+        grads.append(param.grad.data.clone())
+
+    return grads
+
 
 def train(model, optimizer, train_loader, pattern='model', batch_index=None):
 
@@ -125,6 +146,7 @@ def train(model, optimizer, train_loader, pattern='model', batch_index=None):
 
         return get_model_grads(model)
 
+
 def test(model, test_loader, participant, epoch):
 
     '''模型测试
@@ -155,11 +177,11 @@ def test(model, test_loader, participant, epoch):
 for i in range(epoch):
 
     params = train(model_2, optimizer_2, train_loader_2, pattern='model')
-    test(model_2, test_loader, 2, epoch)
-
+    test(model_2, test_loader, 2, i)
+    
     client_2.send(params)
-
-
+    
+  
     avg_params = client_2.recv()
-
+   
     utils.update_model_params(model_2, avg_params, [])
