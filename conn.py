@@ -16,24 +16,30 @@ class Server:
         self.socket = socket.socket()
         self.socket.bind((host, port))
         self.socket.listen(client_num)
-        self.client = []
+        self.client = []  # 客户端套接字
+        self.client_flag = {}  # 客户端公钥:客户端套接字
         for i in range(client_num):
             client, address = self.socket.accept()
             self.client.append(client)
 
-    def send(self, obj: object) -> bool:
+    def send(self, obj: object, flag: str = '') -> bool:
         """
         向所有客户端发送对象\n
         :param obj: 需要发送的对象
+        :param flag: 用于指定客户端，默认为空时进行群发，给定flag查找指定客户端进行发送，查找失败抛出异常
         :return: 成功返回True，失败返回False
         """
         try:
+            if flag:
+                client = [self.client_flag[flag]]
+            else:
+                client = self.client
             data = pickle.dumps(obj)
             header = json.dumps({'size': len(data)}).encode()
-            for client in self.client:
-                client.sendall(struct.pack('i', len(header)))  # 报头长度
-                client.sendall(header)  # 报头
-                client.sendall(data)  # 数据
+            for c in client:
+                c.sendall(struct.pack('i', len(header)))  # 报头长度
+                c.sendall(header)  # 报头
+                c.sendall(data)  # 数据
             return True
         except Exception as e:
             print('Error:', e)
@@ -42,7 +48,7 @@ class Server:
     def recv(self):
         """
         接收所有客户端发送的对象\n
-        :return: 成功则以yield的形式迭代返回接收到的对象并反序列化，失败返回None
+        :return: 成功返回对象，客户端套接字二元组的迭代器，失败返回None
         """
         try:
             for client in self.client:
@@ -66,7 +72,7 @@ class Server:
                         is_conn = False
                         break
                 else:
-                    yield pickle.loads(data)
+                    yield pickle.loads(data), client
                 if not is_conn:
                     print('The client is disconnected...')
                     return None
@@ -108,7 +114,8 @@ class Client:
 
     def recv(self):
         """
-        :return: 成功返回接收到的对象并反序列化，失败返回None
+        接收所有客户端发送的对象\n
+        :return: 成功返回接收对象，失败返回None
         """
         try:
             is_conn = True
