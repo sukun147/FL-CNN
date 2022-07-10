@@ -1,3 +1,5 @@
+import warnings
+warnings.filterwarnings("ignore")
 import utils
 import conn
 from torchvision import transforms as tf
@@ -6,17 +8,41 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Subset
 import torch
 import torch.optim as optim
+import tenseal as ts
+import numpy as np
+
+
+def gencontext():
+    context = ts.context(ts.SCHEME_TYPE.CKKS, 8192, coeff_mod_bit_sizes=[22 ,21, 21, 21, 21, 21, 21, 21, 21, 22])
+    context.global_scale = pow(2, 21)
+    context.generate_galois_keys()
+    return context
+
+def encrypt(context, np_tensor):
+    return ts.ckks_vector(context, np_tensor)
+
+def decrypt(enc_vector):
+    return np.array(enc_vector.decrypt())
+
+def bootstrap(context, tensor):
+    # To refresh a tensor with exhausted depth. 
+    # Here, bootstrap = enc(dec())
+    tmp = decrypt(tensor)
+    return encrypt(context, tmp)
+
+ctx=gencontext()
+
 
 batch_size = 50
 data_size = 10000
 batch_num = data_size / batch_size
 transform = tf.Compose([tf.ToTensor(), tf.Normalize((0.1307,), (0.3081,))])
 
-train_dataset = datasets.MNIST(root='../dataset/mnist/', train=True, transform=transform, download=True)
+train_dataset = datasets.MNIST(root='dataset/mnist/', train=True, transform=transform, download=True)
 train_dataset_1 = Subset(train_dataset, range(0, data_size))
 train_loader_1 = DataLoader(train_dataset_1, batch_size=batch_size, shuffle=True)
 
-test_dataset = datasets.MNIST(root='../dataset/mnist', train=False, transform=transform, download=True)
+test_dataset = datasets.MNIST(root='dataset/mnist', train=False, transform=transform, download=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 
@@ -54,7 +80,8 @@ class NeuralNetwork(torch.nn.Module):
         return x
 
 
-server_host = '192.168.1.104'
+# server_host = '192.168.1.102'
+server_host = '106.126.8.115'
 server_port = 666
 epoch = 100
 client_1 = conn.Client(server_host, server_port)  
@@ -63,7 +90,13 @@ optimizer_1 = optim.SGD(model_1.parameters(), lr=0.1)
 criterion = torch.nn.CrossEntropyLoss()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 def get_model_params(model):
+    """
+    此处需要加密
+    :param model:
+    :return:
+    """
 
     '''获取模型参数
 
@@ -152,7 +185,8 @@ def train(model, optimizer, train_loader, pattern='model', batch_index=None):
 
         return get_model_grads(model)
 
-def test(model, test_loader, participant, epoch):
+
+def model_test(model, test_loader, participant, epoch):
 
     '''模型测试
 
@@ -180,19 +214,44 @@ def test(model, test_loader, participant, epoch):
         correct += (prediction == labels).sum().item()
 
     print('[Epoch%d Participant%2d]Accuracy Rate on Test_Dataset: %.2f%%' % (epoch+1, participant, 100*correct/total))
-
-
+#将建立的context进行序列化并丢弃私钥
+server_context=ctx.copy()
+server_context.make_context_public()
+server_context = server_context.serialize()
+#储存params的size
+client_1.send('client1')
+num_params=client_1.recv()
+#接受用户数
+client_1.send(server_context)
+if client_1.recv() == '1':
+    print('good')
+#发送公钥给服务端
 for i in range(epoch):
-
+    enc_params=[]
     params = train(model_1, optimizer_1, train_loader_1, pattern='model')
-    test(model_1, test_loader, 1, i)
-    
-    client_1.send(params)
-    
-  
-    avg_params = client_1.recv()
-   
+    # test(model_1, test_loader, 1, i)
+    model_test(model_1, test_loader, 1, i)
+    #加密
+    param_size = []
+    for param in params:
+        param_size.append(param.size())
+    for param in params:
+        enc_param=param.view(-1)
+        enc_params.append(encrypt(ctx, enc_param).serialize())    
+    client_1.send(enc_params)
+    print('123')
+    avg_params=client_1.recv()
+    for i in range(len(avg_params)):
+        avg_params[i]=torch.reshape(torch.from_numpy(np.array(ts.ckks_vector_from(ctx, avg_params[i]).decrypt())),param_size[i])
+     
+#将返还的params解密
+#再接受用户数
+    for i in range(len(avg_params)):
+        avg_params[i]=avg_params[i]/num_params#用户数量
+#返回解密后的平均模型
+    client_1.send(avg_params) 
+#将聚合的params进行平均
     utils.update_model_params(model_1, avg_params, [])
-    
+    model_1=model_1.type(torch.cuda.FloatTensor)
 
 

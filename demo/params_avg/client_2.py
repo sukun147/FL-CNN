@@ -1,3 +1,5 @@
+import warnings
+warnings.filterwarnings("ignore")
 import utils
 import conn
 from torchvision import transforms as tf
@@ -6,18 +8,19 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Subset
 import torch
 import torch.optim as optim
-
+import tenseal as ts
+import numpy as np
 
 batch_size = 50
 data_size = 10000
 batch_num = data_size / batch_size
 transform = tf.Compose([tf.ToTensor(), tf.Normalize((0.1307,), (0.3081,))])
 
-train_dataset = datasets.MNIST(root='../dataset/mnist/', train=True, transform=transform, download=True)
+train_dataset = datasets.MNIST(root='dataset/mnist/', train=True, transform=transform, download=True)
 train_dataset_2 = Subset(train_dataset, range(data_size, data_size*2))
 train_loader_2 = DataLoader(train_dataset_2, batch_size=batch_size, shuffle=True)
 
-test_dataset = datasets.MNIST(root='../dataset/mnist', train=False, transform=transform, download=True)
+test_dataset = datasets.MNIST(root='dataset/mnist', train=False, transform=transform, download=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 
@@ -55,7 +58,8 @@ class NeuralNetwork(torch.nn.Module):
         return x
 
 
-server_host = '192.168.1.104'
+# server_host = '192.168.1.102'
+server_host = '106.126.8.115'
 server_port = 666
 epoch = 100
 client_2 = conn.Client(server_host, server_port)  
@@ -147,7 +151,7 @@ def train(model, optimizer, train_loader, pattern='model', batch_index=None):
         return get_model_grads(model)
 
 
-def test(model, test_loader, participant, epoch):
+def model_test(model, test_loader, participant, epoch):
 
     '''模型测试
     :param model: 待测试的客户端模型
@@ -172,16 +176,18 @@ def test(model, test_loader, participant, epoch):
         correct += (prediction == labels).sum().item()
 
     print('[Epoch%d Participant%2d]Accuracy Rate on Test_Dataset: %.2f%%' % (epoch+1, participant, 100*correct/total))
-
-
+client_2.send('client2')
+server_context=client_2.recv()
+context=ts.context_from(server_context)
 for i in range(epoch):
-
+    enc_params=[]
     params = train(model_2, optimizer_2, train_loader_2, pattern='model')
-    test(model_2, test_loader, 2, i)
-    
-    client_2.send(params)
-    
-  
+    # test(model_2, test_loader, 2, i)
+    model_test(model_2, test_loader, 2, i)
+    for param in params:
+        enc_param=param.view(-1)
+        enc_params.append(ts.ckks_vector(context, enc_param).serialize())
+    client_2.send(enc_params)
     avg_params = client_2.recv()
-   
     utils.update_model_params(model_2, avg_params, [])
+    model_2 = model_2.type(torch.cuda.FloatTensor)
